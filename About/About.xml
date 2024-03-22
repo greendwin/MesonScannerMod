@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>MesonScannerMod</Name>
+  <Author>Elmotrix</Author>
+  <Version>0.2</Version>
+  <Description>Toggle between all/cables/pipes/chutes with middle mouse button click. Hold spraycan for surprise.</Description>
+  <Tags />
+</ModMetadata>
