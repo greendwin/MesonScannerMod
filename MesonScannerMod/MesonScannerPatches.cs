@@ -15,68 +15,88 @@ namespace MesonScannerMod
     [HarmonyPatch(typeof(SPUMesonScanner), "Render")]
     public class SPUMesonScannerRender
     {
+        static void AddPipesToBatch()
+        {
+            foreach (PipeNetwork allPipeNetwork in PipeNetwork.AllPipeNetworks)
+            {
+                foreach (INetworkedStructure structure in allPipeNetwork.StructureList)
+                {
+                    if (structure is Pipe pipe && !pipe.IsOccluded && !(pipe is HydroponicTray))
+                    {
+                        if (Utils.IsFiltered(pipe))
+                        {
+                            SPUMesonScannerAddToBatch.AddToBatch(pipe);
+                        }
+                    }
+                }
+            }
+        }
+
+        static void AddCablesToBatch()
+        {
+            foreach (CableNetwork allCableNetwork in CableNetwork.AllCableNetworks)
+            {
+                foreach (Cable cable in allCableNetwork.CableList)
+                {
+                    if (!cable.IsOccluded)
+                    {
+                        if (Utils.IsFiltered(cable))
+                        {
+                            SPUMesonScannerAddToBatch.AddToBatch(cable);
+                        }
+                    }
+                }
+            }
+        }
+
+        static void AddChutesToBatch()
+        {
+            foreach (ChuteNetwork allChuteNetwork in ChuteNetwork.AllChuteNetworks)
+            {
+                foreach (Chute chute in allChuteNetwork.StructureList)
+                {
+                    if (!chute.IsOccluded)
+                    {
+                        if (Utils.IsFiltered(chute))
+                        {
+                            SPUMesonScannerAddToBatch.AddToBatch(chute);
+                        }
+                    }
+                }
+            }
+        }
+
         [HarmonyPrefix]
         public static bool Prefix(SPUMesonScanner __instance)
         {
             if (InventoryManager.Instance.ActiveHand.Slot.Get() is SprayCan sprayCan)
             {
-                Utils.colorSwatch = sprayCan.GetPaintMaterial();
+                Utils.colorSwitch = sprayCan.GetPaintMaterial();
             }
             else if (InventoryManager.Instance.InactiveHand.Slot.Get() is SprayCan sprayCan2)
             {
-                Utils.colorSwatch = sprayCan2.GetPaintMaterial();
+                Utils.colorSwitch = sprayCan2.GetPaintMaterial();
             }
             else
             {
-                Utils.colorSwatch = null;
+                Utils.colorSwitch = null;
             }
 
             switch (Utils.CurrentMode)
             {
+                case Utils.Mode.All:
+                    AddPipesToBatch();
+                    AddCablesToBatch();
+                    AddChutesToBatch();
+                    break;
                 case Utils.Mode.Pipes:
-                    foreach (PipeNetwork allPipeNetwork in PipeNetwork.AllPipeNetworks)
-                    {
-                        foreach (INetworkedStructure structure in allPipeNetwork.StructureList)
-                        {
-                            if (structure is Pipe pipe && !pipe.IsOccluded && !(pipe is HydroponicTray))
-                            {
-                                if (Utils.colorSwatch == null || (pipe.CustomColor.Normal == null && Utils.colorSwatch == pipe.PaintableMaterial) || Utils.colorSwatch == pipe.CustomColor.Normal)
-                                {
-                                    SPUMesonScannerAddToBatch.AddToBatch(pipe);
-                                }
-                            }
-                        }
-                    }
+                    AddPipesToBatch();
                     break;
                 case Utils.Mode.Cables:
-                    foreach (CableNetwork allCableNetwork in CableNetwork.AllCableNetworks)
-                    {
-                        foreach (Cable cable in allCableNetwork.CableList)
-                        {
-                            if (!cable.IsOccluded)
-                            {
-                                if (Utils.colorSwatch == null || (cable.CustomColor.Normal == null && Utils.colorSwatch == cable.PaintableMaterial) || Utils.colorSwatch == cable.CustomColor.Normal)
-                                {
-                                    SPUMesonScannerAddToBatch.AddToBatch(cable);
-                                }
-                            }
-                        }
-                    }
+                    AddCablesToBatch();
                     break;
                 case Utils.Mode.Chutes:
-                    foreach (ChuteNetwork allChuteNetwork in ChuteNetwork.AllChuteNetworks)
-                    {
-                        foreach (Chute chute in allChuteNetwork.StructureList)
-                        {
-                            if (!chute.IsOccluded)
-                            {
-                                if (Utils.colorSwatch == null || (chute.CustomColor.Normal == null && Utils.colorSwatch == chute.PaintableMaterial) || Utils.colorSwatch == chute.CustomColor.Normal)
-                                {
-                                    SPUMesonScannerAddToBatch.AddToBatch(chute);
-                                }
-                            }
-                        }
-                    }
+                    AddChutesToBatch();
                     break;
                 default:
                     break;
@@ -120,8 +140,7 @@ namespace MesonScannerMod
         [HarmonyPrefix]
         public static void Prefix(InventoryManager __instance)
         {
-            bool secondary = KeyManager.GetMouseDown("Secondary");
-            if (secondary)
+            if (KeyManager.GetButtonDown(KeyCode.Mouse2))
             {
                 if (InventoryManager.Parent is Human human)
                 {
@@ -139,14 +158,38 @@ namespace MesonScannerMod
 
     public class Utils
     {
-        public static Material colorSwatch;
-        public static Mode CurrentMode = Mode.Pipes;
-        public enum Mode { Pipes, Cables, Chutes}
+        public static Material colorSwitch;
+        public static Mode CurrentMode = Mode.All;
+        public enum Mode { All, Pipes, Cables, Chutes }
+
+        public static bool IsFiltered(Thing thing)
+        {
+            if (colorSwitch == null)
+            {
+                return true;
+            }
+
+            if (thing.CustomColor.Normal == null && colorSwitch == thing.PaintableMaterial)
+            {
+                return true;
+            }
+
+            if (colorSwitch == thing.CustomColor.Normal)
+            {
+                return true;
+            }
+
+            return false;
+        }
 
         public static void NextMode()
         {
             switch (CurrentMode)
             {
+                case Mode.All:
+                    CurrentMode = Mode.Pipes;
+                    ConsoleWindow.Print("Set Mode Pipes");
+                    break;
                 case Mode.Pipes:
                     CurrentMode = Mode.Cables;
                     ConsoleWindow.Print("Set Mode Cables");
@@ -156,8 +199,8 @@ namespace MesonScannerMod
                     ConsoleWindow.Print("Set Mode Chutes");
                     break;
                 case Mode.Chutes:
-                    CurrentMode = Mode.Pipes;
-                    ConsoleWindow.Print("Set Mode Pipes");
+                    CurrentMode = Mode.All;
+                    ConsoleWindow.Print("Set Mode <All>");
                     break;
                 default:
                     break;
